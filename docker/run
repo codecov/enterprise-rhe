@@ -1,0 +1,139 @@
+#!/bin/sh
+
+set -e +o pipefail
+
+# http://docs.codecov.io/docs/scalling
+nginx='1'
+web='1'
+worker='2'
+concurrency='1'
+queue=''
+frontends='server localhost:8880;'
+https=""
+
+
+if [ $# != 0 ];
+then
+  while getopts "n:p:c:q:w:" o
+  do
+    case "$o" in
+      "n")
+        nginx="$OPTARG"
+        ;;
+      "p")
+        web="$OPTARG"
+        i="0"
+        while [ $i -lt $(expr $web - 1) ]
+        do
+          i=$[$i+1]
+          frontends="$frontends
+server localhost:888$i;"
+        done
+        ;;
+      "w")
+         worker="$OPTARG"
+         ;;
+      "c")
+         concurrency="$OPTARG"
+         ;;
+      "q")
+         queue="--queue $OPTARG"
+         ;;
+    esac
+  done
+fi
+
+
+# move files mounted to root into /config
+[ ! -f /config/mime.types ] && ln -s /mime.types /config/mime.types || true
+[ -f /codecov.yml ] && ln -s /codecov.yml /config/codecov.yml || true
+[ -f /nginx.conf ] && ln -s /nginx.conf /config/nginx.conf || true
+[ -f /codecov.key ] && ln -s /codecov.key /config/codecov.key || true
+[ -f /codecov.crt ] && ln -s /codecov.crt /config/codecov.crt || true
+
+
+# add supervisor defaults
+echo "
+[unix_http_server]
+file=/tmp/supervisor.sock
+
+[supervisord]
+user=root
+pidfile=/tmp/supervisord.pid
+nodaemon=true
+logfile=/dev/stdout
+logfile_maxbytes=0
+" > /config/supervisord.conf
+
+if [ $web != "0" ];
+then
+
+  if [ $nginx != "0" ];
+  then
+    echo "
+[program:nginx]
+command=sh -c 'sleep 10 && exec nginx -c /config/.nginx.conf'
+process_name=%(program_name)s_%(process_num)d
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+numprocs=$nginx
+priority=3
+" >> /config/supervisord.conf
+  fi
+
+  # check for custom nginx.conf
+  if [ -f /config/nginx.conf ];
+  then
+    # append frontends
+    sed -e "s/__FRONTENDS__/$frontends/" /config/nginx.conf > /config/.nginx.conf
+  else
+    # check for certificates
+    if [ -f /config/codecov.crt ] && [ -f /config/codecov.key ];
+    then
+      # use https nginx
+      https=",FORCE_HTTPS='true'"
+      sed -e "s/__FRONTENDS__/$frontends/" /https.nginx.conf > /config/.nginx.conf
+    else
+      # use http nginx
+      sed -e "s/__FRONTENDS__/$frontends/" /http.nginx.conf > /config/.nginx.conf
+    fi
+  fi
+
+  echo "
+[program:web]
+command=/codecov web -p 888%(process_num)d --config /config/codecov.yml
+process_name=%(program_name)s_%(process_num)d
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+numprocs=$web
+priority=1
+environment=DOCKER='true'$https
+" >> /config/supervisord.conf
+fi
+
+if [ $worker != "0" ];
+then
+  echo "
+[program:worker]
+command=/codecov worker -n %(process_num)d -c $concurrency $queue --config /config/codecov.yml
+process_name=%(program_name)s_%(process_num)d
+autorestart=true
+startsecs=10
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+numprocs=$worker
+priority=2
+environment=DOCKER='true'
+" >> /config/supervisord.conf
+fi
+
+# run supervisor
+/usr/bin/supervisord -c /config/supervisord.conf

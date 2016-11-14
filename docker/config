@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -e +o pipefail
+
+DOCKER=true /codecov config

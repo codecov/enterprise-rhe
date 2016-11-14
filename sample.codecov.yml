@@ -1,0 +1,115 @@
+# ========================================================================================
+#                 Codecov Enterprise: Sample codecov.yml config file
+# ========================================================================================
+#          Learn more at https://github.com/codecov/enterprise/wiki/Configuration
+
+setup:
+  codecov_url: null              # (required) the url endpoint for your Codecov instance
+  enterprise_license: null       # (required) provided by Codecov staff
+  encryption_secret: null        # used to encrypt user oauth tokens (do not chnage once set, will require all uses to log in/out to reset tokens)
+  guest_access: false            # allow non-logged in users to view public repos
+  loglvl: INFO                   # INFO, DEBUG or WARNING
+  cookie_secret: null            # (required) string used to encrypt secure cookies
+  expire_user_cookies_days: 365  # number of days cookies are valid for
+
+  # # uncomment this section below to enable report archiving
+  # archive:
+  #   destination: disk
+  #   directory: /archive
+  #   hash_key: "random_string"
+
+services:
+  database_url: null            # (required) postgres url [may leave empty for when using Docker]
+  redis_url: null               # (required) used for celery and storing reports before processing [may leave empty for when using Docker]
+  rabbitmq_url: null            # specify to use a rabbitmq as the celery broker
+  google_analytics_key: null    # front-end tracking
+  ci_providers: null            # list of ci domains to check GitHub Status target urls against, ex: "- jenkins.my-company.com"
+  gravatar: true                # use gravatar.com when user avatars are not available with attached provider
+
+# Github
+# ---------------------------------
+github:
+  client_id: null               # (required) from https://github.com/settings/applications/new
+  client_secret: null           # (required) from https://github.com/settings/applications/new
+  organizations: null           # List of organizations. Users must be a member of at least one. (optional) (default all)
+  global_upload_token: null     # a secret string that is used as a global token for uploading reports
+
+# Github Enterprise
+# ---------------------------------
+github_enterprise:
+  url: null                     # (required) the base url of your GitHub Enterprise ex. https://enterprise-hostname.com
+  client_id: null               # (required) from https://github.com/settings/applications/new
+  client_secret: null           # (required) from https://github.com/settings/applications/new
+  global_upload_token: null     # a secret string that is used as a global token for uploading reports
+  api_url: null                 # (optional) the base url of your GitHub Enterprise API defaults to `url + "/api/v3"`
+  verify_ssl: null              # (optiona) if false: will not verify server ssl certificate
+  ssl_pem: null                 # (optiona) SSL CA cacert.pem used when making http requests with GitHub
+
+# Bitbucket
+# ---------------------------------
+bitbucket:
+  client_id: null               #
+  client_secret: null           #
+  organizations: null           # List of teams. Users must be a member of at least one. (optional) (default all)
+  global_upload_token: null     # a secret string that is used as a global token for uploading reports
+
+# Bitbucket Server
+# ---------------------------------
+bitbucket_server:
+  url: null                     # (required) the base url for your Bitbucket Server
+  client_id: null               # (required) application client_id
+  organizations: null           # List of teams. Users must be a member of at least one. (optional) (default all)
+  global_upload_token: null     # a secret string that is used as a global token for uploading reports
+  verify_ssl: null              # (optiona) if false: will not verify server ssl certificate
+  ssl_pem: null                 # (optiona) SSL CA cacert.pem used when making http requests with Bitbucket Server
+
+# Gitlab
+# ---------------------------------
+gitlab:
+  client_id: null              # Application Id from https://gitlab.com/profile/applications/new
+  client_secret: null          # Secret from https://gitlab.com/profile/applications/new
+  organizations: null          # List of teams. Users must be a member of at least one. (optional) (default all)
+  global_upload_token: null    # a secret string that is used as a global token for uploading reports
+
+# Gitlab Enterprise
+# ---------------------------------
+gitlab_enterprise:
+  url: null                    # Your instance of Gitlab (ex. https://gitlab.mycompany.com)
+  client_id: null              # Application Id from https://gitlab.mycompany.com/profile/applications/new
+  client_secret: null          # Secret from https://gitlab.mycompany.com/profile/applications/new
+  global_upload_token: null    # a secret string that is used as a global token for uploading reports
+  verify_ssl: null             # (optiona) if false: will not verify server ssl certificate
+  ssl_pem: null                # (optiona) SSL CA cacert.pem used when making http requests with Gitlab
+
+
+# Below is your Enterprise project defaults
+# Each organization and repository may adjust these values below in
+# their codecov.yml files. The logic used to for a project is:
+# `yaml = {}; yaml.update(site); yaml.update(team_yaml); yaml.update(repo_yaml);
+site:
+  codecov:
+    notify:
+      require_ci_to_pass: yes
+
+  coverage:
+    precision: 2
+    round: down
+    range: "70...100"
+
+    status:
+      project: yes
+      patch: yes
+      changes: no
+
+    parsers:
+       gcov:
+         branch_detection:
+           conditional: yes
+           loop: yes
+           method: no
+           macro: no
+
+  comment:
+    layout: "header, diff"
+    behavior: default
+
